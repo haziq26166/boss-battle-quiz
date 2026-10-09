@@ -1,0 +1,1263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Boss Battle Quiz</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: radial-gradient(circle at 50% 0%, #2a1a4a 0%, #0d0618 100%);
+    color: #eee;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 40px 16px 16px 16px;
+    overflow-x: hidden;
+  }
+  #game {
+    width: 100%;
+    max-width: 720px;
+    background: rgba(20, 10, 40, 0.85);
+    border: 2px solid #6a3fb5;
+    border-radius: 16px;
+    padding: 34px 24px 24px 24px;
+    box-shadow: 0 0 40px rgba(150, 80, 255, 0.4);
+    position: relative;
+  }
+
+  .hud { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+  .fighter { flex: 1; }
+  .fighter h3 { font-size: 13px; margin-bottom: 6px; letter-spacing: 1px; text-transform: uppercase; }
+  .hero h3 { color: #7ee787; }
+  .boss h3 { color: #ff6b6b; text-align: right; }
+  .hp-bar {
+    height: 18px;
+    background: #1a0a2a;
+    border: 1px solid #444;
+    border-radius: 9px;
+    overflow: hidden;
+  }
+  .hp-fill { height: 100%; transition: width 0.5s ease; }
+  .hero .hp-fill { background: linear-gradient(90deg, #3fb950, #7ee787); width: 100%; }
+  .boss .hp-fill { background: linear-gradient(90deg, #b02020, #ff6b6b); width: 100%; float: right; }
+  .hp-text { font-size: 12px; margin-top: 4px; opacity: 0.8; }
+  .boss .hp-text { text-align: right; }
+
+  .info-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+    padding: 10px 14px;
+    background: rgba(60, 30, 100, 0.4);
+    border-radius: 10px;
+    font-size: 13px;
+    flex-wrap: wrap;
+  }
+  .info-item { display: flex; align-items: center; gap: 6px; }
+  .info-item strong { color: #ffd700; }
+  .streak-fire { color: #ff9500; }
+
+  #arena {
+    position: relative;
+    height: 180px;
+    margin-bottom: 16px;
+    border-radius: 12px;
+    overflow: hidden;
+    background: linear-gradient(180deg, #1a0a2a 0%, #2d1a4a 60%, #3a1f5c 100%);
+    border: 1px solid #6a3fb5;
+  }
+  .arena-bg-stars {
+    position: absolute; inset: 0;
+    background-image: radial-gradient(2px 2px at 20% 30%, #fff, transparent),
+                      radial-gradient(2px 2px at 60% 20%, #fff, transparent),
+                      radial-gradient(1px 1px at 80% 50%, #fff, transparent),
+                      radial-gradient(2px 2px at 35% 70%, #fff, transparent),
+                      radial-gradient(1px 1px at 90% 80%, #fff, transparent);
+    opacity: 0.5;
+  }
+  .arena-ground {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 40px;
+    background: linear-gradient(180deg, #3a1f5c 0%, #1a0a2a 100%);
+    border-top: 1px solid #6a3fb5;
+  }
+  .fighter-sprite {
+    position: absolute;
+    bottom: 30px;
+    font-size: 64px;
+    transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5));
+    user-select: none;
+  }
+  #hero-sprite { left: 30px; }
+  #boss-sprite-arena { right: 30px; }
+
+  .hero-attacking { animation: heroAttack 0.6s ease; }
+  .hero-hurt { animation: hurt 0.5s ease; }
+  .boss-attacking { animation: bossAttack 0.6s ease; }
+  .boss-hurt { animation: hurt 0.5s ease; }
+
+  @keyframes heroAttack {
+    0% { transform: translateX(0); }
+    40% { transform: translateX(180px) scale(1.15); }
+    60% { transform: translateX(180px) scale(1.15); }
+    100% { transform: translateX(0); }
+  }
+  @keyframes bossAttack {
+    0% { transform: translateX(0); }
+    40% { transform: translateX(-180px) scale(1.15); }
+    60% { transform: translateX(-180px) scale(1.15); }
+    100% { transform: translateX(0); }
+  }
+  @keyframes hurt {
+    0%,100% { transform: translateX(0); filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5)); }
+    25% { transform: translateX(-8px) rotate(-8deg); filter: drop-shadow(0 0 12px #ff0000) brightness(2); }
+    50% { transform: translateX(8px) rotate(8deg); filter: drop-shadow(0 0 12px #ff0000) brightness(2); }
+    75% { transform: translateX(-5px) rotate(-4deg); filter: drop-shadow(0 0 8px #ff0000) brightness(1.5); }
+  }
+
+  .damage-pop {
+    position: absolute;
+    font-size: 28px;
+    font-weight: bold;
+    pointer-events: none;
+    animation: damageFloat 1s ease-out forwards;
+    text-shadow: 0 0 8px currentColor;
+  }
+  @keyframes damageFloat {
+    0% { transform: translateY(0) scale(0.5); opacity: 0; }
+    20% { transform: translateY(-10px) scale(1.3); opacity: 1; }
+    100% { transform: translateY(-70px) scale(1); opacity: 0; }
+  }
+
+  .impact {
+    position: absolute;
+    font-size: 40px;
+    pointer-events: none;
+    animation: impactPop 0.5s ease-out forwards;
+  }
+  @keyframes impactPop {
+    0% { transform: scale(0.3); opacity: 0; }
+    50% { transform: scale(1.4); opacity: 1; }
+    100% { transform: scale(1.8); opacity: 0; }
+  }
+
+  .boss-stage-tag {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    font-size: 11px;
+    padding: 3px 8px;
+    background: rgba(255, 107, 107, 0.2);
+    border: 1px solid #ff6b6b;
+    border-radius: 6px;
+    color: #ff6b6b;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  #timer-bar-container {
+    height: 6px;
+    background: #1a0a2a;
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 14px;
+  }
+  #timer-bar {
+    height: 100%;
+    width: 100%;
+    background: linear-gradient(90deg, #3fb950, #ffd700, #ff6b6b);
+    transition: width 0.1s linear;
+  }
+  #timer-bar.warning { background: #ff6b6b; animation: pulse 0.5s infinite alternate; }
+  @keyframes pulse { from { opacity: 1; } to { opacity: 0.5; } }
+
+  #heal-btn {
+    display: none;
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 12px;
+    background: linear-gradient(135deg, #16a34a, #22c55e);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: bold;
+    font-size: 14px;
+    cursor: pointer;
+    animation: glowGreen 1.5s infinite alternate;
+  }
+  @keyframes glowGreen {
+    from { box-shadow: 0 0 8px #22c55e; }
+    to { box-shadow: 0 0 20px #22c55e; }
+  }
+  #heal-btn:hover { transform: scale(1.02); }
+
+  #question-box {
+    background: rgba(60, 30, 100, 0.5);
+    border: 1px solid #6a3fb5;
+    border-radius: 12px;
+    padding: 18px;
+  }
+  #question-text {
+    font-size: 17px;
+    line-height: 1.5;
+    margin-bottom: 16px;
+    min-height: 48px;
+  }
+  #answers { display: grid; gap: 10px; }
+  .answer-btn {
+    padding: 12px 16px;
+    background: #2a1548;
+    color: #eee;
+    border: 1px solid #6a3fb5;
+    border-radius: 8px;
+    font-size: 15px;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.15s;
+  }
+  .answer-btn:hover:not(:disabled) { background: #4a2580; transform: translateX(4px); }
+  .answer-btn:disabled { cursor: default; opacity: 0.6; }
+  .answer-btn.correct { background: #1e7a3a !important; border-color: #3fb950; opacity: 1; }
+  .answer-btn.wrong { background: #7a1e1e !important; border-color: #ff6b6b; opacity: 1; }
+
+  .screen { text-align: center; padding: 20px 0; }
+  .screen h1 { font-size: 28px; margin-bottom: 12px; color: #c9a6ff; }
+  .screen p { margin-bottom: 20px; line-height: 1.6; opacity: 0.9; }
+  .btn {
+    padding: 14px 32px;
+    font-size: 16px;
+    background: linear-gradient(135deg, #7c3aed, #a855f7);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: bold;
+    letter-spacing: 1px;
+    transition: transform 0.15s;
+    margin: 4px;
+  }
+  .btn:hover { transform: scale(1.05); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .btn.secondary { background: linear-gradient(135deg, #334155, #475569); }
+  .score-big { font-size: 42px; color: #ffd700; margin: 16px 0; }
+  .hidden { display: none !important; }
+
+  .creator-form {
+    max-width: 480px;
+    margin: 0 auto;
+    text-align: left;
+  }
+  .form-group { margin-bottom: 18px; }
+  .form-group label {
+    display: block;
+    font-size: 13px;
+    color: #c9a6ff;
+    margin-bottom: 8px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .form-group input {
+    width: 100%;
+    padding: 12px 14px;
+    background: #1a0a2a;
+    border: 1px solid #6a3fb5;
+    border-radius: 8px;
+    color: #eee;
+    font-size: 15px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .form-group input:focus { border-color: #a855f7; box-shadow: 0 0 10px rgba(168,85,247,0.4); }
+  .hero-picker {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+  .hero-option {
+    padding: 12px 8px;
+    background: #1a0a2a;
+    border: 2px solid #6a3fb5;
+    border-radius: 10px;
+    cursor: pointer;
+    text-align: center;
+    font-size: 28px;
+    transition: all 0.15s;
+  }
+  .hero-option:hover { border-color: #a855f7; transform: translateY(-2px); }
+  .hero-option.selected {
+    border-color: #ffd700;
+    background: rgba(255, 215, 0, 0.1);
+    box-shadow: 0 0 12px rgba(255,215,0,0.5);
+  }
+
+  #story-screen { text-align: center; padding: 20px 10px; }
+  .story-emoji {
+    font-size: 80px;
+    margin-bottom: 16px;
+    display: inline-block;
+    animation: floatEmoji 3s ease-in-out infinite;
+  }
+  @keyframes floatEmoji {
+    0%,100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+  .story-title {
+    font-size: 22px;
+    color: #c9a6ff;
+    margin-bottom: 20px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .story-text {
+    font-size: 16px;
+    line-height: 1.8;
+    max-width: 560px;
+    margin: 0 auto 24px;
+    color: #d8c8ff;
+    text-align: left;
+    min-height: 200px;
+  }
+  .story-text p { margin-bottom: 14px; }
+  .story-text .highlight { color: #ffd700; font-weight: bold; }
+  .story-text .whisper {
+    font-style: italic;
+    color: #a88fe0;
+    text-align: center;
+    margin-top: 20px;
+    display: block;
+  }
+  .story-progress {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+  .story-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #4a2580;
+    transition: background 0.2s;
+  }
+  .story-dot.active { background: #a855f7; box-shadow: 0 0 8px #a855f7; }
+  .fade-in { animation: fadeIn 0.5s ease; }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .typewriter::after {
+    content: '▌';
+    color: #a855f7;
+    animation: blink 0.8s infinite;
+    margin-left: 2px;
+  }
+  @keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+  }
+
+  .story-choices {
+    display: grid;
+    gap: 10px;
+    max-width: 480px;
+    margin: 0 auto 20px;
+  }
+  .choice-btn {
+    padding: 14px 18px;
+    background: linear-gradient(135deg, #4a2580, #6a3fb5);
+    border: 2px solid #a855f7;
+    border-radius: 10px;
+    color: #eee;
+    font-size: 15px;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.2s;
+    font-family: inherit;
+  }
+  .choice-btn:hover {
+    transform: translateX(6px);
+    background: linear-gradient(135deg, #6a3fb5, #a855f7);
+    box-shadow: 0 0 15px rgba(168,85,247,0.5);
+  }
+
+  /* FIXED: Music button now floats above the card like a tab */
+  .music-toggle {
+    position: absolute;
+    top: -14px;
+    right: 16px;
+    background: linear-gradient(135deg, #4a2580, #6a3fb5);
+    border: 1px solid #a855f7;
+    color: #fff;
+    padding: 6px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    z-index: 20;
+    box-shadow: 0 2px 10px rgba(168, 85, 247, 0.4);
+    transition: transform 0.15s, background 0.15s;
+  }
+  .music-toggle:hover {
+    transform: scale(1.05);
+    background: linear-gradient(135deg, #6a3fb5, #a855f7);
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin: 16px auto;
+    max-width: 400px;
+  }
+  .stat-box {
+    padding: 10px;
+    background: rgba(60, 30, 100, 0.5);
+    border-radius: 8px;
+    border: 1px solid #6a3fb5;
+  }
+  .stat-label { font-size: 11px; opacity: 0.7; text-transform: uppercase; letter-spacing: 1px; }
+  .stat-value { font-size: 20px; font-weight: bold; color: #ffd700; margin-top: 2px; }
+
+  @media (max-width: 500px) {
+    .fighter-sprite { font-size: 48px; }
+    #arena { height: 150px; }
+    .story-emoji { font-size: 60px; }
+    .story-title { font-size: 18px; }
+    .music-toggle { font-size: 11px; padding: 5px 10px; }
+  }
+</style>
+</head>
+<body>
+<div id="game">
+  <button class="music-toggle" id="music-btn" onclick="toggleMusic()">🎵 Music: ON</button>
+
+  <div id="start-screen" class="screen">
+    <h1>⚔️ BOSS BATTLE QUIZ ⚔️</h1>
+    <p>A dark force stirs.<br>Only the sharpest mind can defeat it.</p>
+    <button class="btn" onclick="showCreator()">FORGE YOUR HERO</button>
+  </div>
+
+  <div id="creator-screen" class="screen hidden">
+    <h1>⚔️ Forge Your Hero</h1>
+    <p style="font-size:14px;">Name your champion and choose a sigil.</p>
+    <div class="creator-form">
+      <div class="form-group">
+        <label for="hero-name-input">Hero Name</label>
+        <input type="text" id="hero-name-input" maxlength="20" placeholder="Enter a name..." value="Aeron">
+      </div>
+      <div class="form-group">
+        <label>Choose Your Sigil</label>
+        <div class="hero-picker" id="hero-picker">
+          <div class="hero-option selected" data-emoji="🛡️">🛡️</div>
+          <div class="hero-option" data-emoji="⚔️">⚔️</div>
+          <div class="hero-option" data-emoji="🧙">🧙</div>
+          <div class="hero-option" data-emoji="🏹">🏹</div>
+          <div class="hero-option" data-emoji="🗡️">🗡️</div>
+          <div class="hero-option" data-emoji="🔮">🔮</div>
+          <div class="hero-option" data-emoji="⚡">⚡</div>
+          <div class="hero-option" data-emoji="🌟">🌟</div>
+        </div>
+      </div>
+      <div style="text-align:center;">
+        <button class="btn" onclick="confirmHero()">CONTINUE →</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="story-screen" class="screen hidden">
+    <div class="story-progress" id="story-progress"></div>
+    <div class="story-emoji" id="story-emoji">📜</div>
+    <div class="story-title" id="story-title"></div>
+    <div class="story-text" id="story-text"></div>
+    <div class="story-choices" id="story-choices"></div>
+    <button class="btn" id="story-next-btn" onclick="nextStory()">CONTINUE →</button>
+    <button class="btn secondary" onclick="skipStory()">Skip Story</button>
+  </div>
+
+  <div id="game-screen" class="hidden">
+    <div class="info-bar">
+      <div class="info-item">🧠 Score: <strong id="score-display">0</strong></div>
+      <div class="info-item">🔥 Streak: <strong id="streak-display" class="streak-fire">0</strong></div>
+      <div class="info-item">📊 Accuracy: <strong id="accuracy-display">0%</strong></div>
+    </div>
+
+    <div class="hud">
+      <div class="fighter hero">
+        <h3><span id="hero-sigil-hud">🛡️</span> <span id="hero-name-hud">Hero</span></h3>
+        <div class="hp-bar"><div id="hero-hp" class="hp-fill"></div></div>
+        <div id="hero-hp-text" class="hp-text">100 / 100</div>
+      </div>
+      <div class="fighter boss">
+        <h3>👹 <span id="boss-name">Boss</span></h3>
+        <div class="hp-bar"><div id="boss-hp" class="hp-fill"></div></div>
+        <div id="boss-hp-text" class="hp-text">100 / 100</div>
+      </div>
+    </div>
+
+    <div id="arena">
+      <div class="arena-bg-stars"></div>
+      <div class="arena-ground"></div>
+      <div class="boss-stage-tag" id="boss-stage-tag">Stage 1</div>
+      <div id="hero-sprite" class="fighter-sprite">🛡️</div>
+      <div id="boss-sprite-arena" class="fighter-sprite">👹</div>
+    </div>
+
+    <div id="timer-bar-container">
+      <div id="timer-bar"></div>
+    </div>
+
+    <button id="heal-btn" onclick="useHeal()">💚 USE HEAL (+25 HP) — 1 use left</button>
+
+    <div id="question-box">
+      <div id="question-text"></div>
+      <div id="answers"></div>
+    </div>
+  </div>
+
+  <div id="end-screen" class="hidden screen"></div>
+
+</div>
+
+<script>
+/* ============================================================
+   ⚙️ CONFIGURATION
+   ============================================================ */
+const STARTING_HP = 100;
+const DAMAGE_PER_HIT = 20;
+const DAMAGE_TAKEN = 15;
+const TIME_PER_QUESTION = 15;
+const STREAK_BONUS_PER_HIT = 4;
+const MAX_STREAK_BONUS = 20;
+const HEAL_AMOUNT = 25;
+const HEAL_EVERY_N_CORRECT = 3;
+const TYPEWRITER_SPEED = 18;
+
+const BOSS = {
+  name: "The Boss",
+  emoji: "👹"
+};
+
+const QUESTIONS = [
+  { q: "What is the capital of Japan?", a: ["Tokyo", "Osaka", "Kyoto", "Seoul"] },
+  { q: "Which planet is known as the Red Planet?", a: ["Mars", "Venus", "Jupiter", "Mercury"] },
+  { q: "What is 7 × 8?", a: ["56", "54", "64", "48"] },
+  { q: "Who painted the Mona Lisa?", a: ["Leonardo da Vinci", "Pablo Picasso", "Vincent van Gogh", "Michelangelo"] },
+  { q: "What is the largest ocean on Earth?", a: ["Pacific Ocean", "Atlantic Ocean", "Indian Ocean", "Arctic Ocean"] },
+  { q: "How many continents are there?", a: ["7", "5", "6", "8"] },
+  { q: "What gas do plants absorb from the air?", a: ["Carbon dioxide", "Oxygen", "Nitrogen", "Hydrogen"] },
+  { q: "In which year did World War II end?", a: ["1945", "1939", "1918", "1950"] },
+  { q: "What is the chemical symbol for gold?", a: ["Au", "Ag", "Gd", "Go"] },
+  { q: "Who wrote 'Romeo and Juliet'?", a: ["William Shakespeare", "Charles Dickens", "Jane Austen", "Mark Twain"] },
+  { q: "What is the largest mammal in the world?", a: ["Blue whale", "African elephant", "Giraffe", "Hippopotamus"] },
+  { q: "How many sides does a hexagon have?", a: ["6", "5", "7", "8"] },
+  { q: "What is the boiling point of water in Celsius?", a: ["100°C", "90°C", "110°C", "120°C"] },
+  { q: "Which country invented pizza?", a: ["Italy", "France", "Greece", "Spain"] },
+  { q: "What is the smallest prime number?", a: ["2", "1", "3", "0"] }
+];
+
+const BOSS_STAGES = [
+  { minHp: 0.7,  stage: 1, label: "Healthy" },
+  { minHp: 0.4,  stage: 2, label: "Wounded" },
+  { minHp: 0.15, stage: 3, label: "Critical" },
+  { minHp: 0,    stage: 4, label: "Near Death" }
+];
+
+/* ============================================================
+   🎮 GAME STATE
+   ============================================================ */
+let HERO = { name: "Aeron", sigil: "🛡️" };
+let heroHp, bossHp;
+let usedQuestions, currentQuestion;
+let score, streak, bestStreak, totalCorrect, totalAnswered;
+let correctThisLevel, healsAvailable;
+let timerInterval, timeLeft;
+let soundOn = true;
+let musicOn = true;
+let musicStarted = false;
+let answering = false;
+let storyIndex = 0;
+let storyFlags = {};
+let typewriterTimeout = null;
+let isTyping = false;
+let STORY_BUILT = [];
+let ENDINGS = { win: {}, lose: {} };
+
+/* ============================================================
+   🔊 SOUND (all guarded)
+   ============================================================ */
+let audioCtx = null;
+
+function initAudio() {
+  try {
+    if (!audioCtx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return false;
+      audioCtx = new AC();
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function playTone(freq, duration, type = 'sine', volume = 0.15) {
+  if (!soundOn) return;
+  try {
+    if (!initAudio()) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + duration);
+  } catch (e) {}
+}
+
+function sfxHit()     { playTone(220, 0.15, 'square', 0.2); setTimeout(() => playTone(440, 0.1, 'square'), 60); }
+function sfxHurt()    { playTone(150, 0.3, 'sawtooth', 0.2); }
+function sfxCorrect() { playTone(660, 0.1, 'sine'); setTimeout(() => playTone(880, 0.15, 'sine'), 80); }
+function sfxWrong()   { playTone(200, 0.2, 'sawtooth'); setTimeout(() => playTone(150, 0.3, 'sawtooth'), 100); }
+function sfxHeal()    { playTone(523, 0.1); setTimeout(() => playTone(659, 0.1), 80); setTimeout(() => playTone(784, 0.2), 160); }
+function sfxWin()     { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => playTone(f, 0.2, 'sine'), i * 120)); }
+function sfxLose()    { [400, 350, 300, 200].forEach((f, i) => setTimeout(() => playTone(f, 0.25, 'sawtooth'), i * 150)); }
+function sfxTick()    { playTone(880, 0.05, 'sine', 0.08); }
+function sfxType()    { playTone(1200, 0.01, 'sine', 0.03); }
+
+/* ============================================================
+   🎵 BACKGROUND MUSIC
+   ============================================================ */
+let musicNodes = [];
+
+function startMusic() {
+  if (!musicOn || musicStarted) return;
+  try {
+    if (!initAudio()) return;
+  } catch (e) { return; }
+
+  try {
+    const padFreqs = [110, 164.81, 220];
+    padFreqs.forEach((freq) => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      const filter = audioCtx.createBiquadFilter();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      filter.type = 'lowpass';
+      filter.frequency.value = 400;
+      gain.gain.value = 0;
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      gain.gain.linearRampToValueAtTime(0.04, audioCtx.currentTime + 3);
+      musicNodes.push({ osc, gain });
+    });
+
+    const notes = [440, 523.25, 659.25, 523.25, 493.88, 587.33, 739.99, 587.33];
+    let noteIndex = 0;
+    musicNodes.melodyInterval = setInterval(() => {
+      if (!musicOn || !audioCtx) return;
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.value = notes[noteIndex % notes.length];
+        gain.gain.setValueAtTime(0, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.06, audioCtx.currentTime + 0.5);
+        gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 3);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 3);
+        noteIndex++;
+      } catch (e) {}
+    }, 2200);
+
+    musicStarted = true;
+  } catch (e) {
+    musicStarted = false;
+  }
+}
+
+function stopMusic() {
+  try {
+    musicNodes.forEach(n => {
+      try {
+        if (n.gain) n.gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 1);
+        if (n.osc) setTimeout(() => { try { n.osc.stop(); } catch(e){} }, 1200);
+      } catch (e) {}
+    });
+    if (musicNodes.melodyInterval) clearInterval(musicNodes.melodyInterval);
+    musicNodes = [];
+    musicStarted = false;
+  } catch (e) {}
+}
+
+function toggleMusic() {
+  musicOn = !musicOn;
+  const btn = document.getElementById('music-btn');
+  if (btn) btn.textContent = musicOn ? '🎵 Music: ON' : '🔇 Music: OFF';
+  if (musicOn) startMusic(); else stopMusic();
+}
+
+/* ============================================================
+   📺 SCREEN MANAGEMENT
+   ============================================================ */
+function showScreen(id) {
+  ['start-screen', 'creator-screen', 'story-screen', 'game-screen', 'end-screen'].forEach(s => {
+    const el = document.getElementById(s);
+    if (el) el.classList.add('hidden');
+  });
+  const target = document.getElementById(id);
+  if (target) target.classList.remove('hidden');
+}
+
+/* ============================================================
+   👤 HERO CREATOR
+   ============================================================ */
+function showCreator() {
+  showScreen('creator-screen');
+}
+
+document.querySelectorAll('.hero-option').forEach(opt => {
+  opt.addEventListener('click', () => {
+    document.querySelectorAll('.hero-option').forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+  });
+});
+
+function confirmHero() {
+  const nameInput = document.getElementById('hero-name-input').value.trim();
+  HERO.name = nameInput || "Aeron";
+  const selected = document.querySelector('.hero-option.selected');
+  HERO.sigil = selected ? selected.dataset.emoji : "🛡️";
+
+  document.getElementById('hero-sigil-hud').textContent = HERO.sigil;
+  document.getElementById('hero-name-hud').textContent = HERO.name;
+  document.getElementById('hero-sprite').textContent = HERO.sigil;
+
+  buildStory();
+  buildEndings();
+
+  storyIndex = 0;
+  showStory(0);
+}
+
+/* ============================================================
+   📖 STORY ENGINE
+   ============================================================ */
+function buildStory() {
+  STORY_BUILT = [
+    {
+      id: "intro1",
+      emoji: "🌙",
+      title: "Chapter I — The Long Night",
+      text: `<p>The village of <span class="highlight">Eldenmoor</span> has fallen silent.</p>
+<p>For three nights, no one has dared leave their homes. The lanterns burn low, and the wind carries a sound no one can name — a low, patient growl from the old ruins on the hill.</p>
+<p>You are <span class="highlight">${HERO.name}</span>, ${HERO.sigil} of the <span class="highlight">Order of the Quill</span>. When the others fled, you stayed.</p>`,
+      next: "intro2"
+    },
+    {
+      id: "intro2",
+      emoji: "📜",
+      title: "Chapter II — The Summons",
+      text: `<p>At dawn, a letter arrived sealed with black wax. Inside, a single line:</p>
+<p style="text-align:center; font-style:italic; color:#ffd700; font-size:18px;">"Prove your mind, or lose your world."</p>
+<p>The path to the ruins is short. The journey into <span class="highlight">${BOSS.name}'s</span> lair is not.</p>
+<p>Before you set out, you pause at the crossroads...</p>`,
+      choices: [
+        { text: "🛤️ Take the old road through the forest.", flag: "road", next: "pathForest" },
+        { text: "⛰️ Climb the mountain pass above the ruins.", flag: "mountain", next: "pathMountain" }
+      ]
+    },
+    {
+      id: "pathForest",
+      emoji: "🌲",
+      title: "The Whispering Forest",
+      text: `<p>The old road winds beneath ancient trees. Their branches whisper secrets as you pass.</p>
+<p>You find a <span class="highlight">weathered scroll</span> half-buried in leaves. Its runes glow faintly — knowledge long forgotten.</p>
+<p>A voice in your mind says: <em>"The wise gather wisdom before the battle."</em> You take the scroll and continue.</p>`,
+      next: "confront"
+    },
+    {
+      id: "pathMountain",
+      emoji: "⛰️",
+      title: "The Mountain Pass",
+      text: `<p>The climb is steep and cold. Wind cuts through your cloak. But from the peak, you see the ruins clearly — a dark spire against the grey sky.</p>
+<p>You spot a <span class="highlight">hidden trail</span> that no scout has ever mapped. This knowledge may serve you well.</p>
+<p>You descend toward the ruins, your mind sharp from the climb.</p>`,
+      next: "confront"
+    },
+    {
+      id: "confront",
+      emoji: "👹",
+      title: "Chapter III — The Confrontation",
+      text: `<p>You enter the ruined hall. Torches flicker. At the far end, a shape rises from the shadows — <span class="highlight">${BOSS.name}</span>.</p>
+<p>It does not attack with claws or fire. Instead, it speaks:</p>
+<p style="text-align:center; font-style:italic; color:#ff6b6b; font-size:17px;">"Answer truly, and you may pass.<br>Hesitate, and you belong to me."</p>
+<p>You raise your ${HERO.sigil} and steady your mind.</p>
+<p class="whisper">— Your trial begins now, ${HERO.name}. —</p>`
+    }
+  ];
+}
+
+function buildEndings() {
+  ENDINGS.win = {
+    emoji: "🏆",
+    title: "Epilogue — The Dawn Returns",
+    text: `<p><span class="highlight">${BOSS.name}</span> staggers back, its voice fading into silence. The torches steady. The growl is gone.</p>
+<p>You, <span class="highlight">${HERO.name}</span>, step out of the ruins as the first light of morning touches the hills. Eldenmoor will wake to a new day — and it will remember the ${HERO.sigil} who stood alone and answered without fear.</p>
+<p class="whisper">— The Order of the Quill endures. —</p>`
+  };
+  ENDINGS.lose = {
+    emoji: "💀",
+    title: "Epilogue — The Silence",
+    text: `<p>Your mind falters. The last answer slips away like smoke. <span class="highlight">${BOSS.name}</span> laughs — low, patient, victorious.</p>
+<p>The torches go out one by one. The ruins are quiet again.</p>
+<p>But the Order does not fall so easily. Somewhere in the village, another scholar picks up a quill, and the story begins again.</p>
+<p class="whisper">— Try once more, ${HERO.name}. —</p>`
+  };
+}
+
+function showStory(index) {
+  if (index >= STORY_BUILT.length) {
+    startGame();
+    return;
+  }
+  storyIndex = index;
+  const page = STORY_BUILT[storyIndex];
+
+  document.getElementById('story-emoji').textContent = page.emoji;
+  document.getElementById('story-title').textContent = page.title;
+
+  const dots = document.getElementById('story-progress');
+  dots.innerHTML = '';
+  STORY_BUILT.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'story-dot' + (i === storyIndex ? ' active' : '');
+    dots.appendChild(d);
+  });
+
+  const choicesBox = document.getElementById('story-choices');
+  choicesBox.innerHTML = '';
+  const nextBtn = document.getElementById('story-next-btn');
+
+  if (page.choices) {
+    nextBtn.style.display = 'none';
+    page.choices.forEach(c => {
+      const btn = document.createElement('button');
+      btn.className = 'choice-btn';
+      btn.textContent = c.text;
+      btn.onclick = () => {
+        if (c.flag) storyFlags[c.flag] = true;
+        showStoryById(c.next);
+      };
+      choicesBox.appendChild(btn);
+    });
+  } else if (page.next) {
+    nextBtn.style.display = 'inline-block';
+    nextBtn.textContent = 'CONTINUE →';
+    nextBtn.onclick = () => showStoryById(page.next);
+  } else {
+    nextBtn.style.display = 'inline-block';
+    nextBtn.textContent = '⚔️ FACE THE BOSS';
+    nextBtn.onclick = () => startGame();
+  }
+
+  showScreen('story-screen');
+  typewriteInto(document.getElementById('story-text'), page.text);
+}
+
+function showStoryById(id) {
+  const idx = STORY_BUILT.findIndex(p => p.id === id);
+  if (idx >= 0) showStory(idx);
+  else startGame();
+}
+
+function nextStory() {
+  const page = STORY_BUILT[storyIndex];
+  if (page && page.next) showStoryById(page.next);
+  else if (page && page.choices) return;
+  else startGame();
+}
+
+function skipStory() {
+  if (typewriterTimeout) clearTimeout(typewriterTimeout);
+  startGame();
+}
+
+/* ============================================================
+   ✍️ TYPEWRITER EFFECT
+   ============================================================ */
+function typewriteInto(container, html) {
+  if (!container) return;
+  if (typewriterTimeout) clearTimeout(typewriterTimeout);
+  container.innerHTML = '';
+  container.classList.add('typewriter');
+  isTyping = true;
+
+  const tokens = [];
+  let i = 0;
+  while (i < html.length) {
+    if (html[i] === '<') {
+      const end = html.indexOf('>', i);
+      if (end !== -1) {
+        tokens.push({ type: 'tag', value: html.slice(i, end + 1) });
+        i = end + 1;
+        continue;
+      }
+    }
+    tokens.push({ type: 'char', value: html[i] });
+    i++;
+  }
+
+  let buffer = '';
+  let idx = 0;
+  let charSinceSound = 0;
+
+  function step() {
+    if (idx >= tokens.length) {
+      container.classList.remove('typewriter');
+      isTyping = false;
+      return;
+    }
+    const token = tokens[idx];
+    buffer += token.value;
+
+    let delay = TYPEWRITER_SPEED;
+    if (token.type === 'tag') {
+      delay = token.value.startsWith('</p') || token.value.startsWith('<br') ? 180 : 0;
+    } else if (token.type === 'char') {
+      charSinceSound++;
+      if (charSinceSound >= 3 && token.value.trim() !== '') {
+        try { sfxType(); } catch(e) {}
+        charSinceSound = 0;
+      }
+    }
+
+    container.innerHTML = buffer;
+    idx++;
+    typewriterTimeout = setTimeout(step, delay);
+  }
+  step();
+}
+
+/* ============================================================
+   🎬 GAME START
+   ============================================================ */
+function startGame() {
+  if (typewriterTimeout) clearTimeout(typewriterTimeout);
+  heroHp = STARTING_HP;
+  bossHp = STARTING_HP;
+  score = 0; streak = 0; bestStreak = 0;
+  totalCorrect = 0; totalAnswered = 0;
+  correctThisLevel = 0;
+  healsAvailable = 1;
+  usedQuestions = [];
+  answering = false;
+
+  document.getElementById('boss-name').textContent = BOSS.name;
+  document.getElementById('boss-sprite-arena').textContent = BOSS.emoji;
+  document.getElementById('hero-sprite').textContent = HERO.sigil;
+  document.getElementById('heal-btn').style.display = 'none';
+
+  showScreen('game-screen');
+  updateHud();
+  updateBossSprite();
+  nextQuestion();
+}
+
+function restartGame() {
+  document.getElementById('end-screen').innerHTML = '';
+  showScreen('start-screen');
+}
+
+/* ============================================================
+   🧠 QUESTION FLOW
+   ============================================================ */
+function nextQuestion() {
+  answering = false;
+  if (usedQuestions.length >= QUESTIONS.length) usedQuestions = [];
+  const remaining = QUESTIONS.filter(q => !usedQuestions.includes(q));
+  currentQuestion = remaining[Math.floor(Math.random() * remaining.length)];
+  usedQuestions.push(currentQuestion);
+  renderQuestion();
+  startTimer();
+}
+
+function renderQuestion() {
+  document.getElementById('question-text').textContent = currentQuestion.q;
+  const answersBox = document.getElementById('answers');
+  answersBox.innerHTML = '';
+  const shuffled = [...currentQuestion.a].sort(() => Math.random() - 0.5);
+  const correct = currentQuestion.a[0];
+  shuffled.forEach(ans => {
+    const btn = document.createElement('button');
+    btn.className = 'answer-btn';
+    btn.textContent = ans;
+    btn.onclick = () => handleAnswer(btn, ans === correct);
+    answersBox.appendChild(btn);
+  });
+}
+
+/* ============================================================
+   ⏱️ TIMER
+   ============================================================ */
+function startTimer() {
+  clearInterval(timerInterval);
+  timeLeft = TIME_PER_QUESTION;
+  const bar = document.getElementById('timer-bar');
+  bar.classList.remove('warning');
+  bar.style.width = '100%';
+  const startTime = Date.now();
+
+  timerInterval = setInterval(() => {
+    const elapsed = (Date.now() - startTime) / 1000;
+    timeLeft = Math.max(0, TIME_PER_QUESTION - elapsed);
+    const pct = (timeLeft / TIME_PER_QUESTION) * 100;
+    bar.style.width = pct + '%';
+
+    if (timeLeft <= 3) bar.classList.add('warning');
+    if (Math.ceil(timeLeft) !== Math.ceil(timeLeft + 0.1) && timeLeft <= 3 && timeLeft > 0) sfxTick();
+    if (timeLeft <= 0 && !answering) {
+      clearInterval(timerInterval);
+      timeUp();
+    }
+  }, 100);
+}
+
+function stopTimer() { clearInterval(timerInterval); }
+
+function timeUp() {
+  if (answering) return;
+  answering = true;
+  streak = 0;
+  totalAnswered++;
+  heroHp = Math.max(0, heroHp - DAMAGE_TAKEN);
+  sfxHurt();
+  document.getElementById('question-text').textContent = "⏰ Time's up! The boss strikes!";
+  document.querySelectorAll('.answer-btn').forEach(b => {
+    b.disabled = true;
+    if (b.textContent === currentQuestion.a[0]) b.classList.add('correct');
+  });
+  animateBossAttack();
+  updateHud();
+  setTimeout(() => checkEnd(), 1600);
+}
+
+/* ============================================================
+   🎯 ANSWER HANDLING
+   ============================================================ */
+function handleAnswer(btn, isCorrect) {
+  if (answering) return;
+  answering = true;
+  stopTimer();
+  totalAnswered++;
+
+  document.querySelectorAll('.answer-btn').forEach(b => b.disabled = true);
+  const correct = currentQuestion.a[0];
+  document.querySelectorAll('.answer-btn').forEach(b => {
+    if (b.textContent === correct) b.classList.add('correct');
+    else if (b === btn && !isCorrect) b.classList.add('wrong');
+  });
+
+  if (isCorrect) {
+    streak++;
+    if (streak > bestStreak) bestStreak = streak;
+    totalCorrect++;
+    correctThisLevel++;
+
+    const streakBonus = Math.min(streak - 1, 5) * STREAK_BONUS_PER_HIT;
+    const cappedBonus = Math.min(streakBonus, MAX_STREAK_BONUS);
+    const totalDamage = DAMAGE_PER_HIT + cappedBonus;
+    bossHp = Math.max(0, bossHp - totalDamage);
+
+    const speedBonus = Math.round(timeLeft) * 2;
+    const points = 10 + (streak * 5) + speedBonus;
+    score += points;
+
+    sfxCorrect();
+    sfxHit();
+    animateHeroAttack(totalDamage, points, streak);
+
+    if (correctThisLevel % HEAL_EVERY_N_CORRECT === 0 && healsAvailable > 0) {
+      document.getElementById('heal-btn').style.display = 'block';
+    }
+  } else {
+    streak = 0;
+    heroHp = Math.max(0, heroHp - DAMAGE_TAKEN);
+    sfxWrong();
+    sfxHurt();
+    animateBossAttack(DAMAGE_TAKEN);
+  }
+
+  updateHud();
+  updateBossSprite();
+  setTimeout(() => checkEnd(), 1800);
+}
+
+/* ============================================================
+   🎬 ANIMATIONS
+   ============================================================ */
+function animateHeroAttack(damage, points, streak) {
+  const hero = document.getElementById('hero-sprite');
+  hero.classList.add('hero-attacking');
+  setTimeout(() => {
+    hero.classList.remove('hero-attacking');
+    const boss = document.getElementById('boss-sprite-arena');
+    boss.classList.add('boss-hurt');
+    spawnImpact(0.75, '💥');
+    spawnDamage(0.75, `-${damage}`, '#ff6b6b');
+    if (streak >= 3) spawnDamage(0.5, `🔥 x${streak}`, '#ff9500');
+    setTimeout(() => boss.classList.remove('boss-hurt'), 500);
+  }, 400);
+  setTimeout(() => { spawnDamage(0.15, `+${points}`, '#7ee787'); }, 700);
+}
+
+function animateBossAttack(damage = DAMAGE_TAKEN) {
+  const boss = document.getElementById('boss-sprite-arena');
+  boss.classList.add('boss-attacking');
+  setTimeout(() => {
+    boss.classList.remove('boss-attacking');
+    const hero = document.getElementById('hero-sprite');
+    hero.classList.add('hero-hurt');
+    spawnImpact(0.2, '💢');
+    if (damage > 0) spawnDamage(0.2, `-${damage}`, '#ff6b6b');
+    setTimeout(() => hero.classList.remove('hero-hurt'), 500);
+  }, 400);
+}
+
+function spawnDamage(xPct, text, color) {
+  const arena = document.getElementById('arena');
+  const el = document.createElement('div');
+  el.className = 'damage-pop';
+  el.textContent = text;
+  el.style.color = color;
+  el.style.left = (xPct * 100) + '%';
+  el.style.bottom = '100px';
+  arena.appendChild(el);
+  setTimeout(() => el.remove(), 1100);
+}
+
+function spawnImpact(xPct, emoji) {
+  const arena = document.getElementById('arena');
+  const el = document.createElement('div');
+  el.className = 'impact';
+  el.textContent = emoji;
+  el.style.left = (xPct * 100) + '%';
+  el.style.bottom = '80px';
+  arena.appendChild(el);
+  setTimeout(() => el.remove(), 600);
+}
+
+/* ============================================================
+   💚 HEAL
+   ============================================================ */
+function useHeal() {
+  if (healsAvailable <= 0) return;
+  healsAvailable--;
+  heroHp = Math.min(STARTING_HP, heroHp + HEAL_AMOUNT);
+  sfxHeal();
+  spawnDamage(0.2, `+${HEAL_AMOUNT} HP`, '#22c55e');
+  document.getElementById('heal-btn').style.display = 'none';
+  updateHud();
+}
+
+/* ============================================================
+   📊 HUD
+   ============================================================ */
+function updateHud() {
+  const heroPct = (heroHp / STARTING_HP) * 100;
+  const bossPct = (bossHp / STARTING_HP) * 100;
+  document.getElementById('hero-hp').style.width = heroPct + '%';
+  document.getElementById('boss-hp').style.width = bossPct + '%';
+  document.getElementById('hero-hp-text').textContent = `${heroHp} / ${STARTING_HP}`;
+  document.getElementById('boss-hp-text').textContent = `${bossHp} / ${STARTING_HP}`;
+  document.getElementById('score-display').textContent = score;
+  document.getElementById('streak-display').textContent = streak;
+  const acc = totalAnswered ? Math.round((totalCorrect / totalAnswered) * 100) : 0;
+  document.getElementById('accuracy-display').textContent = acc + '%';
+  document.getElementById('heal-btn').textContent = `💚 USE HEAL (+${HEAL_AMOUNT} HP) — ${healsAvailable} use left`;
+}
+
+function updateBossSprite() {
+  const pct = bossHp / STARTING_HP;
+  const stage = BOSS_STAGES.find(s => pct >= s.minHp);
+  const bossEl = document.getElementById('boss-sprite-arena');
+  bossEl.textContent = BOSS.emoji;
+  bossEl.style.filter = pct < 0.4
+    ? 'drop-shadow(0 4px 8px rgba(0,0,0,0.5)) hue-rotate(-20deg) brightness(0.8)'
+    : 'drop-shadow(0 4px 8px rgba(0,0,0,0.5))';
+  document.getElementById('boss-stage-tag').textContent = `Stage ${stage.stage} — ${stage.label}`;
+}
+
+/* ============================================================
+   🏁 END CONDITIONS
+   ============================================================ */
+function checkEnd() {
+  if (bossHp <= 0) return endGame(true);
+  if (heroHp <= 0) return endGame(false);
+  nextQuestion();
+}
+
+function endGame(heroWon) {
+  stopTimer();
+  const ending = heroWon ? ENDINGS.win : ENDINGS.lose;
+  const accuracy = totalAnswered ? Math.round((totalCorrect / totalAnswered) * 100) : 0;
+
+  if (heroWon) sfxWin(); else sfxLose();
+
+  const endScreen = document.getElementById('end-screen');
+  endScreen.innerHTML = `
+    <div class="story-emoji">${ending.emoji}</div>
+    <h1 style="color:${heroWon ? '#7ee787' : '#ff6b6b'}">${heroWon ? '🏆 VICTORY! 🏆' : '💀 DEFEATED 💀'}</h1>
+    <div class="story-title" style="font-size:16px; margin-bottom:14px;">${ending.title}</div>
+    <div class="story-text" id="end-story-text" style="text-align:left;"></div>
+    <div class="score-big">${score} pts</div>
+    <div class="stats-grid">
+      <div class="stat-box"><div class="stat-label">Accuracy</div><div class="stat-value">${accuracy}%</div></div>
+      <div class="stat-box"><div class="stat-label">Best Streak</div><div class="stat-value">🔥 ${bestStreak}</div></div>
+      <div class="stat-box"><div class="stat-label">Correct</div><div class="stat-value">${totalCorrect}/${totalAnswered}</div></div>
+      <div class="stat-box"><div class="stat-label">Hero HP Left</div><div class="stat-value">${heroHp}</div></div>
+    </div>
+    <button class="btn" onclick="restartGame()">PLAY AGAIN</button>
+  `;
+  showScreen('end-screen');
+
+  const endTextEl = document.getElementById('end-story-text');
+  if (endTextEl) typewriteInto(endTextEl, ending.text);
+}
+
+/* ============================================================
+   🚀 INITIAL BOOT
+   ============================================================ */
+document.getElementById('hero-name-hud').textContent = HERO.name;
+document.getElementById('hero-sigil-hud').textContent = HERO.sigil;
+document.getElementById('hero-sprite').textContent = HERO.sigil;
+
+// Start music on the first real user click (browser autoplay policy)
+document.addEventListener('click', function startMusicOnce() {
+  if (musicOn) startMusic();
+}, { once: true });
+
+// Catch silent errors so buttons never break
+window.addEventListener('error', function(e) {
+  console.warn('Game warning:', e.message);
+});
+</script>
+</body>
+</html>
