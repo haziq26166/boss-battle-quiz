@@ -1,68 +1,56 @@
 /* ============================================================
    BOSS BATTLE QUIZ — GAME DATA
    ------------------------------------------------------------
-   Edit this file to customize:
-     • GAME_CONFIG  → gameplay balance
-     • BOSS         → boss name & emoji
-     • CHARACTERS   → playable heroes and their stats
-     • QUESTIONS    → your quiz questions
-     • BOSS_STAGES  → HP-based stage labels
-     • ENDINGS      → victory / defeat story text
+   With "all questions must appear" mode:
+   - The game uses ALL questions before it can end
+   - Boss HP is calculated to survive until the last question
+   - If the boss survives, Sudden Death resolves the tie
    ============================================================ */
 
 /* ---------- GLOBAL GAMEPLAY BALANCE ---------- */
 const GAME_CONFIG = {
   DAMAGE_TAKEN: 15,           // HP lost per wrong answer
-  STREAK_BONUS_PER_HIT: 4,    // Extra damage per streak level
-  MAX_STREAK_BONUS: 20,       // Cap on streak bonus damage
+  STREAK_BONUS_PER_HIT: 2,    // Extra damage per streak level
+  MAX_STREAK_BONUS: 8,        // Cap on streak bonus damage
   HEAL_EVERY_N_CORRECT: 3,    // Heal available every N correct answers
   TYPEWRITER_SPEED: 14,       // ms per character during story
 
-  /* ---------- TIMER SETTINGS ----------
-     TIME_PER_QUESTION:  Base seconds per question (used if a
-                         question has no custom "time" field)
-     TIME_AUTO_SCALE:    If true, base time is automatically
-                         extended based on question length.
-                         Longer questions get more time.
-     TIME_PER_CHAR:      Extra seconds added per character
-                         (only used when TIME_AUTO_SCALE = true)
-     TIME_MIN:           Minimum seconds per question
-     TIME_MAX:           Maximum seconds per question
-  */
-  TIME_PER_QUESTION: 15,
+  /* ---------- TIMER SETTINGS ---------- */
+  TIME_PER_QUESTION: 20,
   TIME_AUTO_SCALE: true,
   TIME_PER_CHAR: 0.08,
-  TIME_MIN: 10,
-  TIME_MAX: 45
+  TIME_MIN: 12,
+  TIME_MAX: 45,
+
+  /* ---------- ALL-QUESTIONS MODE ----------
+     When true:
+     - The game will use every question before ending
+     - Boss HP is calculated to survive until the last question
+     - Sudden Death resolves if boss survives
+  */
+  ALL_QUESTIONS_MODE: true
 };
 
 /* ---------- THE BOSS ---------- */
 const BOSS = {
-  name: "The Boss",
-  emoji: "👹",
-  hp: 100
+  name: "The Elder Dragon",
+  emoji: "🐉",
+  hp: 100        // Ignored in ALL_QUESTIONS_MODE — computed dynamically
 };
 
 /* ---------- PLAYABLE CHARACTERS ---------- */
 const CHARACTERS = [
-  { id: "knight",  emoji: "🛡️", name: "The Knight",  desc: "Stalwart defender. Extra health.",        hp: 130, damage: 18, heal: 30, hpMult: 1.0  },
-  { id: "duelist", emoji: "⚔️", name: "The Duelist", desc: "Balanced fighter. Strong all-around.",    hp: 100, damage: 22, heal: 25, hpMult: 1.0  },
-  { id: "mage",    emoji: "🧙", name: "The Mage",    desc: "Fragile but devastating.",                hp: 75,  damage: 32, heal: 20, hpMult: 0.9  },
-  { id: "archer",  emoji: "🏹", name: "The Archer",  desc: "Fast and precise.",                       hp: 90,  damage: 25, heal: 22, hpMult: 1.0  },
-  { id: "rogue",   emoji: "🗡️", name: "The Rogue",   desc: "Relentless striker. Heavy damage.",       hp: 85,  damage: 30, heal: 15, hpMult: 1.05 },
-  { id: "oracle",  emoji: "🔮", name: "The Oracle",  desc: "Mystic healer. Best recovery.",           hp: 95,  damage: 20, heal: 40, hpMult: 1.0  }
+  { id: "knight",  emoji: "🛡️", name: "The Knight",  desc: "Stalwart defender. Extra health.", hp: 130, damage: 18, heal: 30, hpMult: 0.85 },
+  { id: "duelist", emoji: "⚔️", name: "The Duelist", desc: "Balanced fighter.",                hp: 100, damage: 22, heal: 25, hpMult: 1.0  },
+  { id: "mage",    emoji: "🧙", name: "The Mage",    desc: "Fragile but devastating.",         hp: 75,  damage: 32, heal: 20, hpMult: 1.3  },
+  { id: "archer",  emoji: "🏹", name: "The Archer",  desc: "Fast and precise.",                hp: 90,  damage: 25, heal: 22, hpMult: 1.1  },
+  { id: "rogue",   emoji: "🗡️", name: "The Rogue",   desc: "Relentless striker.",              hp: 85,  damage: 30, heal: 15, hpMult: 1.25 },
+  { id: "oracle",  emoji: "🔮", name: "The Oracle",  desc: "Mystic healer.",                   hp: 95,  damage: 20, heal: 40, hpMult: 1.0  }
 ];
 
 /* ---------- QUIZ QUESTIONS ----------
-   ⚠️  a[0] is ALWAYS the correct answer.
-   The game shuffles answers at runtime.
-
-   OPTIONAL fields per question:
-     time:  Custom seconds for this specific question.
-            Overrides auto-scaling. Example: time: 30
-
-   If "time" is omitted AND TIME_AUTO_SCALE is true,
-   the timer scales automatically based on question + answer length.
+   ⚠️ a[0] is ALWAYS the correct answer.
+   OPTIONAL: time: 30 — custom seconds for that question
 */
 const QUESTIONS = [
   {
