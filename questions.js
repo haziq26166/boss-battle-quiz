@@ -84,6 +84,30 @@ const QUESTIONS = [
   {
     q: "What is a possible effect of user frustration caused by difficult-to-use IT tools?",
     a: ["Lower employee morale and increased mental stress", "Higher employee morale", "Improved system performance", " Reduced software costs"]
+  },
+  {
+    q: "Provisioning value refers to the actual underlying costs of IT, which only includes tangible expenses and excludes intangible expenses.",
+    a: ["False", "True"]
+  },
+  {
+    q: "Service value potential is the value-adding component based on the customer's value perception or expected additional utility and warranty compared to their own assets.",
+    a: ["True", "False"]
+  },
+  {
+    q: "Employee downtime caused by system crashes is considered a tangible IT cost because it directly affects daily working hours.",
+    a: ["False", "True"]
+  },
+  {
+    q: "A company invests RM500,000 into new IT infrastructure and sets an operational budget for the year. What type of financial input is this?",
+    a: ["Capital and Funds", "Resources", "Data", "Returns and Profitability"]
+  },
+  {
+    q: " The IT department assigns 200 staff-hours and uses existing servers to build a new service. What type of financial input does this represent?",
+    a: ["Resources", "Capital and Funds", "Data", "Financial Statements"]
+  },
+  {
+    q: "At the end of the quarter, the CFO presents a balance sheet and cash flow statement to the board. What type of financial output is this?",
+    a: ["Financial Statements", "Returns and Profitability", "Resources", "Data"]
   }
 ];
 
