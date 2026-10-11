@@ -14,11 +14,17 @@
     heroMaxHp: 0,
     bossHp: 0,
     bossMaxHp: 0,
-    usedQuestions: [],
+
+    // Question flow
+    questionPool: [],           // Ordered copy of QUESTIONS for pass 1
+    questionIndex: 0,           // Index into the ordered pass
+    randomPool: [],             // Remaining questions for random mode
+    questionPass: 1,            // 1 = ordered, 2+ = random
+    totalQuestions: 0,
     currentQuestion: null,
     currentQuestionTime: GAME_CONFIG.TIME_PER_QUESTION,
-    questionIndex: 0,           // Which question we're on (0-based)
-    totalQuestions: 0,          // How many questions this run
+
+    // Stats
     score: 0,
     streak: 0,
     bestStreak: 0,
@@ -26,9 +32,13 @@
     totalAnswered: 0,
     correctThisLevel: 0,
     healsAvailable: 1,
+
+    // Timer
     timerInterval: null,
     timeLeft: 0,
     answering: false,
+
+    // Typewriter / audio
     typewriterTimeout: null,
     audioUnlocked: false,
     fullStoryHTML: ""
@@ -61,7 +71,6 @@
   /* ============================================================
      HERO CREATOR
      ============================================================ */
-
   const STAT_MAX = {
     hp: 140,
     damage: 35,
@@ -178,44 +187,44 @@
   }
 
   /* ============================================================
-   STORY
-   ============================================================ */
-function buildStory() {
-  const h = state.hero;
-  const b = BOSS;
-  state.fullStoryHTML =
-    '<p>The village of <span class="highlight">Eldenmoor</span> has fallen silent.</p>' +
-    '<p>For three nights, no one has dared leave their homes. The lanterns burn low, and the wind carries a sound no one can name — a low, patient growl coming from the old ruins on the hill.</p>' +
-    '<p>You are <span class="highlight">' + h.name + '</span>, ' + h.character.emoji + ' ' + h.character.name + ' of the <span class="highlight">Order of the Quill</span> — the keepers of forgotten knowledge. When the others fled, you stayed.</p>' +
-    '<div class="chapter-break">◆ ◆ ◆</div>' +
-    '<p>At dawn, a letter arrived sealed with black wax. Inside, a single line:</p>' +
-    '<p style="text-align:center; font-style:italic; color:#ffd700; font-size:16px; margin:16px 0;">"Prove your mind, or lose your world."</p>' +
-    '<p>The path to the ruins is short. The journey into the dragon\'s lair is not.</p>' +
-    '<p>You gather what little you can — a lantern, a pouch of herbs, and the ' + h.character.emoji + ' that marks you as one of the Order. At the crossroads, you pause.</p>' +
-    '<p>To the east lies the old road through the Whispering Forest. To the west, the steep climb up the Mountain Pass. Either will bring you to the ruins by nightfall.</p>' +
-    '<p>You choose the path that calls to you — and you walk.</p>' +
-    '<div class="chapter-break">◆ ◆ ◆</div>' +
-    '<p>The ruins rise before you as the sun sinks behind the hills — a dark spire against a bruised sky. The air grows warm. Smoke drifts from the broken windows.</p>' +
-    '<p>Inside, torches flicker along the walls. At the far end of the great hall, something stirs in the shadows — a serpentine shape uncoils from the dark, its scales catching the firelight. Smoke curls from its nostrils. Two eyes like molten gold fix upon you.</p>' +
-    '<p><span class="highlight">' + b.name + '</span> raises its head and speaks, its voice like stone grinding against stone:</p>' +
-    '<p style="text-align:center; font-style:italic; color:#ff8c42; font-size:15px; margin:16px 0;">"Answer truly, and you may pass.<br>Hesitate, and you belong to me."</p>' +
-    '<p>You raise your ' + h.character.emoji + ' and steady your mind. Every answer is a strike. Every mistake, a wound. The trial begins now.</p>' +
-    '<p class="whisper">— Prove your mind, ' + h.name + '. —</p>';
-}
+     STORY
+     ============================================================ */
+  function buildStory() {
+    const h = state.hero;
+    const b = BOSS;
+    state.fullStoryHTML =
+      '<p>The village of <span class="highlight">Eldenmoor</span> has fallen silent.</p>' +
+      '<p>For three nights, no one has dared leave their homes. The lanterns burn low, and the wind carries a sound no one can name — a low, patient growl coming from the old ruins on the hill.</p>' +
+      '<p>You are <span class="highlight">' + h.name + '</span>, ' + h.character.emoji + ' ' + h.character.name + ' of the <span class="highlight">Order of the Quill</span> — the keepers of forgotten knowledge. When the others fled, you stayed.</p>' +
+      '<div class="chapter-break">◆ ◆ ◆</div>' +
+      '<p>At dawn, a letter arrived sealed with black wax. Inside, a single line:</p>' +
+      '<p style="text-align:center; font-style:italic; color:#ffd700; font-size:16px; margin:16px 0;">"Prove your mind, or lose your world."</p>' +
+      '<p>The path to the ruins is short. The journey into the dragon\'s lair is not.</p>' +
+      '<p>You gather what little you can — a lantern, a pouch of herbs, and the ' + h.character.emoji + ' that marks you as one of the Order. At the crossroads, you pause.</p>' +
+      '<p>To the east lies the old road through the Whispering Forest. To the west, the steep climb up the Mountain Pass. Either will bring you to the ruins by nightfall.</p>' +
+      '<p>You choose the path that calls to you — and you walk.</p>' +
+      '<div class="chapter-break">◆ ◆ ◆</div>' +
+      '<p>The ruins rise before you as the sun sinks behind the hills — a dark spire against a bruised sky. The air grows warm. Smoke drifts from the broken windows.</p>' +
+      '<p>Inside, torches flicker along the walls. At the far end of the great hall, something stirs in the shadows — a serpentine shape uncoils from the dark, its scales catching the firelight. Smoke curls from its nostrils. Two eyes like molten gold fix upon you.</p>' +
+      '<p><span class="highlight">' + b.name + '</span> raises its head and speaks, its voice like stone grinding against stone:</p>' +
+      '<p style="text-align:center; font-style:italic; color:#ff8c42; font-size:15px; margin:16px 0;">"Answer truly, and you may pass.<br>Hesitate, and you belong to me."</p>' +
+      '<p>You raise your ' + h.character.emoji + ' and steady your mind. Every answer is a strike. Every mistake, a wound. The trial begins now.</p>' +
+      '<p class="whisper">— Prove your mind, ' + h.name + '. —</p>';
+  }
 
-function buildEndings() {
-  const h = state.hero;
-  const b = BOSS;
-  ENDINGS.win.text =
-    '<p><span class="highlight">' + b.name + '</span> lets out a long, shuddering breath. Its golden eyes dim. Slowly, the great wyrm lowers its head to the stone — not in defeat, but in respect. Its voice fades into silence like embers dying in the dark.</p>' +
-    '<p>You, <span class="highlight">' + h.name + '</span> the ' + h.character.name + ', step out of the ruins as the first light of morning touches the hills. The smoke has cleared. Eldenmoor will wake to a new day — and it will remember the ' + h.character.emoji + ' who stood alone before the dragon and answered without fear.</p>' +
-    '<p class="whisper">— The Order of the Quill endures. —</p>';
-  ENDINGS.lose.text =
-    '<p>Your mind falters. The last answer slips away like smoke on the wind. <span class="highlight">' + b.name + '</span> lifts its head, its voice low and patient — victorious.</p>' +
-    '<p>The torches go out one by one. The ruins are quiet again, save for the slow rhythm of a dragon\'s breathing in the dark.</p>' +
-    '<p>But the Order does not fall so easily. Somewhere in the village, another scholar picks up a quill, and the story begins again.</p>' +
-    '<p class="whisper">— Try once more, ' + h.name + '. —</p>';
-}
+  function buildEndings() {
+    const h = state.hero;
+    const b = BOSS;
+    ENDINGS.win.text =
+      '<p><span class="highlight">' + b.name + '</span> lets out a long, shuddering breath. Its golden eyes dim. Slowly, the great wyrm lowers its head to the stone — not in defeat, but in respect. Its voice fades into silence like embers dying in the dark.</p>' +
+      '<p>You, <span class="highlight">' + h.name + '</span> the ' + h.character.name + ', step out of the ruins as the first light of morning touches the hills. The smoke has cleared. Eldenmoor will wake to a new day — and it will remember the ' + h.character.emoji + ' who stood alone before the dragon and answered without fear.</p>' +
+      '<p class="whisper">— The Order of the Quill endures. —</p>';
+    ENDINGS.lose.text =
+      '<p>Your mind falters. The last answer slips away like smoke on the wind. <span class="highlight">' + b.name + '</span> lifts its head, its voice low and patient — victorious.</p>' +
+      '<p>The torches go out one by one. The ruins are quiet again, save for the slow rhythm of a dragon\'s breathing in the dark.</p>' +
+      '<p>But the Order does not fall so easily. Somewhere in the village, another scholar picks up a quill, and the story begins again.</p>' +
+      '<p class="whisper">— Try once more, ' + h.name + '. —</p>';
+  }
 
   /* ---------- TYPEWRITER ---------- */
   function typewriteStory(html) {
@@ -298,32 +307,18 @@ function buildEndings() {
   }
 
   /* ============================================================
-     BOSS HP CALCULATION
+     BOSS HP
      ------------------------------------------------------------
-     In ALL_QUESTIONS_MODE, we compute boss HP so that:
-       - The boss survives until the last question
-       - Only a PERFECT streak could theoretically one-shot it early
-       - The player must answer every question to win
-     Formula:
-       maxPossibleDamage = sum of damage from every question answered
-                           correctly with a maximum streak
-       bossHp = maxPossibleDamage × 0.95 (rounded)
-     This ensures the boss survives all but the final blow.
+     Boss HP is now fixed (no damage cap). The boss can die at any
+     point if the hero deals enough damage. If the boss dies before
+     all questions are shown, that's fine — the fight is over.
      ============================================================ */
   function calculateBossHp(heroDamage, questionCount) {
-    if (!GAME_CONFIG.ALL_QUESTIONS_MODE) {
-      return Math.round(BOSS.hp * state.hero.character.hpMult);
-    }
-
-    // Max damage per hit = base + capped streak bonus
-    const maxPerHit = heroDamage + GAME_CONFIG.MAX_STREAK_BONUS;
-
-    // Assume each question deals full damage
-    const maxTotalDamage = maxPerHit * questionCount;
-
-    // Set boss HP to 95% of that — the boss survives until the last question
-    // unless the player is close to perfect
-    return Math.round(maxTotalDamage * 0.95);
+    // Estimate: about 70% of questions answered correctly
+    // (accounts for wrong answers and timeouts)
+    const expectedHits = Math.max(1, Math.round(questionCount * 0.7));
+    const avgDamage = heroDamage + Math.round(GAME_CONFIG.MAX_STREAK_BONUS / 2);
+    return Math.round(expectedHits * avgDamage);
   }
 
   /* ============================================================
@@ -332,22 +327,22 @@ function buildEndings() {
   function startGame() {
     if (state.typewriterTimeout) clearTimeout(state.typewriterTimeout);
 
-    // Reset state
+    // Hero HP
     state.heroMaxHp = state.hero.character.hp;
     state.heroHp = state.heroMaxHp;
 
-    state.totalQuestions = QUESTIONS.length;
+    // Build the ordered question pool for pass 1
+    state.questionPool = QUESTIONS.slice();
     state.questionIndex = 0;
-    state.usedQuestions = [];
+    state.questionPass = 1;
+    state.randomPool = [];
+    state.totalQuestions = QUESTIONS.length;
 
-    // Build a shuffled queue containing EVERY question exactly once
-    const queue = QUESTIONS.slice().sort(function () { return Math.random() - 0.5; });
-    state.usedQuestions = queue;
-
-    // Calculate boss HP based on mode
+    // Boss HP — fixed, no dynamic capping
     state.bossMaxHp = calculateBossHp(state.hero.character.damage, state.totalQuestions);
     state.bossHp = state.bossMaxHp;
 
+    // Stats
     state.score = 0;
     state.streak = 0;
     state.bestStreak = 0;
@@ -357,6 +352,7 @@ function buildEndings() {
     state.healsAvailable = 1;
     state.answering = false;
 
+    // UI
     $('boss-name').textContent = BOSS.name;
     $('boss-sprite-arena').textContent = BOSS.emoji;
     $('hero-sprite').textContent = state.hero.character.emoji;
@@ -398,20 +394,50 @@ function buildEndings() {
   }
 
   /* ============================================================
-     QUESTIONS — pulls from the shuffled queue, uses every one
+     QUESTION ORDER
+     ------------------------------------------------------------
+     Pass 1: every question in QUESTIONS, in order, exactly once.
+     Pass 2+: random selection without repeats within the pass.
+     ============================================================ */
+  function pickQuestion() {
+    if (state.questionPass === 1) {
+      // Ordered pass
+      if (state.questionIndex < state.questionPool.length) {
+        const q = state.questionPool[state.questionIndex];
+        state.questionIndex++;
+        return q;
+      }
+      // Ordered pass finished → switch to random
+      state.questionPass = 2;
+      state.randomPool = QUESTIONS.slice();
+      return pickRandomQuestion();
+    }
+    return pickRandomQuestion();
+  }
+
+  function pickRandomQuestion() {
+    if (state.randomPool.length === 0) {
+      // Refill the random pool — every question again, but shuffled
+      state.randomPool = QUESTIONS.slice();
+    }
+    const idx = Math.floor(Math.random() * state.randomPool.length);
+    return state.randomPool.splice(idx, 1)[0];
+  }
+
+  /* ============================================================
+     QUESTIONS
      ============================================================ */
   function nextQuestion() {
     state.answering = false;
 
-    // If we've used all questions, resolve the fight
-    if (state.usedQuestions.length === 0) {
-      return resolveSuddenDeath();
-    }
+    // If hero is dead → end
+    if (state.heroHp <= 0) return endGame(false);
 
-    // Take the next question from the queue
-    state.currentQuestion = state.usedQuestions.shift();
-    state.questionIndex++;
+    // If boss is dead → end
+    if (state.bossHp <= 0) return endGame(true);
 
+    // Pick the next question (ordered, then random)
+    state.currentQuestion = pickQuestion();
     state.currentQuestionTime = getQuestionTime(state.currentQuestion);
 
     renderQuestion();
@@ -488,9 +514,8 @@ function buildEndings() {
     animateBossAttack();
     updateHud();
     setTimeout(function () {
-      // Check if hero died
       if (state.heroHp <= 0) return endGame(false);
-      // Otherwise continue to next question (even if we've run out)
+      if (state.bossHp <= 0) return endGame(true);
       nextQuestion();
     }, 1600);
   }
@@ -521,13 +546,8 @@ function buildEndings() {
       const cappedBonus = Math.min(streakBonus, GAME_CONFIG.MAX_STREAK_BONUS);
       const totalDamage = state.hero.character.damage + cappedBonus;
 
-      // Prevent boss from dying before last question (except the very last)
-      if (GAME_CONFIG.ALL_QUESTIONS_MODE && state.usedQuestions.length > 0) {
-        // Cap damage so boss HP stays at least 1 (survives until next question)
-        state.bossHp = Math.max(1, state.bossHp - totalDamage);
-      } else {
-        state.bossHp = Math.max(0, state.bossHp - totalDamage);
-      }
+      // No damage cap — boss HP can drop to 0 at any time
+      state.bossHp = Math.max(0, state.bossHp - totalDamage);
 
       const speedRatio = state.timeLeft / state.currentQuestionTime;
       const speedBonus = Math.round(speedRatio * 20);
@@ -550,9 +570,9 @@ function buildEndings() {
     updateHud();
     updateBossSprite();
     setTimeout(function () {
-      // Hero died? Lose immediately
+      // End conditions — check on every answer
       if (state.heroHp <= 0) return endGame(false);
-      // Otherwise keep going
+      if (state.bossHp <= 0) return endGame(true);
       nextQuestion();
     }, 1800);
   }
@@ -627,7 +647,7 @@ function buildEndings() {
   }
 
   /* ============================================================
-     HUD
+     HUD — accuracy is now shown as %
      ============================================================ */
   function updateHud() {
     const heroPct = (state.heroHp / state.heroMaxHp) * 100;
@@ -638,7 +658,11 @@ function buildEndings() {
     $('boss-hp-text').textContent = state.bossHp + ' / ' + state.bossMaxHp;
     $('score-display').textContent = state.score;
     $('streak-display').textContent = state.streak;
-    const acc = state.totalAnswered ? Math.round((state.totalCorrect / state.totalAnswered) * 100) : 0;
+
+    // Accuracy as a percentage
+    const acc = state.totalAnswered
+      ? Math.round((state.totalCorrect / state.totalAnswered) * 100)
+      : 0;
     $('accuracy-display').textContent = acc + '%';
   }
 
@@ -654,35 +678,19 @@ function buildEndings() {
   }
 
   /* ============================================================
-     RESOLVE — Sudden Death or normal end
+     END CONDITIONS
+     ------------------------------------------------------------
+     The game ends when:
+       - Boss HP reaches 0  → hero wins
+       - Hero HP reaches 0  → hero loses
      ============================================================ */
-  function resolveSuddenDeath() {
-    // Called when the question queue is empty
-    // Win = boss HP is 0 or player has higher HP ratio
-    if (state.bossHp <= 0) {
-      return endGame(true);
-    }
-
-    // Boss survived. Compare HP ratios to decide.
-    const heroRatio = state.heroHp / state.heroMaxHp;
-    const bossRatio = state.bossHp / state.bossMaxHp;
-
-    if (heroRatio > bossRatio) {
-      // Player wins by HP advantage
-      state.bossHp = 0;      // for the epilogue
-      return endGame(true);
-    } else {
-      // Boss wins
-      state.heroHp = 0;      // for the epilogue
-      return endGame(false);
-    }
-  }
-
   function endGame(heroWon) {
     stopTimer();
     buildEndings();
     const ending = heroWon ? ENDINGS.win : ENDINGS.lose;
-    const accuracy = state.totalAnswered ? Math.round((state.totalCorrect / state.totalAnswered) * 100) : 0;
+    const accuracy = state.totalAnswered
+      ? Math.round((state.totalCorrect / state.totalAnswered) * 100)
+      : 0;
 
     const flash = $('end-flash');
     flash.className = 'end-flash ' + (heroWon ? 'win' : 'lose');
