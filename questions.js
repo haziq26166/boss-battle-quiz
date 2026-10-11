@@ -108,6 +108,18 @@ const QUESTIONS = [
   {
     q: "At the end of the quarter, the CFO presents a balance sheet and cash flow statement to the board. What type of financial output is this?",
     a: ["Financial Statements", "Returns and Profitability", "Resources", "Data"]
+  },
+  {
+    q: " A service provider defines one SLA for all customers covering email services, and another SLA covering network services. What type of SLA structure is this?",
+    a: ["Service-level SLA", "Multi-level SLA", " Single-level SLA", "Customer-level SLA"]
+  },
+  {
+    q: "A Customer-level SLA is designed for a specific department or business unit within an organization.",
+    a: ["True", "False"]
+  },
+  {
+    q: "A bank has a general SLA for all branches, but also has a separate SLA specifically for its online banking platform. What type of SLA structure is this?",
+    a: ["Multi-level SLA", "Single-level SLA", "Service-level SLA", "Customer-level SLA"]
   }
 ];
 
