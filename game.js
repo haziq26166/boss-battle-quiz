@@ -15,11 +15,12 @@
     bossHp: 0,
     bossMaxHp: 0,
 
-    // Question flow
-    questionPool: [],           // Ordered copy of QUESTIONS for pass 1
-    questionIndex: 0,           // Index into the ordered pass
-    randomPool: [],             // Remaining questions for random mode
-    questionPass: 1,            // 1 = ordered, 2+ = random
+    // ------------------------------------------------------------
+    // Question cycle — no repeats until EVERY question has appeared
+    // ------------------------------------------------------------
+    questionPass: 1,            // 1 = first ordered cycle, 2+ = random cycles
+    usedQuestions: [],          // questions shown in the current cycle
+
     totalQuestions: 0,
     currentQuestion: null,
     currentQuestionTime: GAME_CONFIG.TIME_PER_QUESTION,
@@ -309,13 +310,11 @@
   /* ============================================================
      BOSS HP
      ------------------------------------------------------------
-     Boss HP is now fixed (no damage cap). The boss can die at any
+     Boss HP is fixed (no damage cap). The boss can die at any
      point if the hero deals enough damage. If the boss dies before
      all questions are shown, that's fine — the fight is over.
      ============================================================ */
   function calculateBossHp(heroDamage, questionCount) {
-    // Estimate: about 70% of questions answered correctly
-    // (accounts for wrong answers and timeouts)
     const expectedHits = Math.max(1, Math.round(questionCount * 0.7));
     const avgDamage = heroDamage + Math.round(GAME_CONFIG.MAX_STREAK_BONUS / 2);
     return Math.round(expectedHits * avgDamage);
@@ -331,11 +330,13 @@
     state.heroMaxHp = state.hero.character.hp;
     state.heroHp = state.heroMaxHp;
 
-    // Build the ordered question pool for pass 1
-    state.questionPool = QUESTIONS.slice();
-    state.questionIndex = 0;
+    // ------------------------------------------------------------
+    // Question cycle — reset only when a brand-new run begins.
+    // Within a run, no question can reappear until every question
+    // has been shown once.
+    // ------------------------------------------------------------
     state.questionPass = 1;
-    state.randomPool = [];
+    state.usedQuestions = [];
     state.totalQuestions = QUESTIONS.length;
 
     // Boss HP — fixed, no dynamic capping
@@ -394,34 +395,52 @@
   }
 
   /* ============================================================
-     QUESTION ORDER
-     ------------------------------------------------------------
-     Pass 1: every question in QUESTIONS, in order, exactly once.
-     Pass 2+: random selection without repeats within the pass.
+     QUESTION ORDER — no repeats until every question has appeared
      ============================================================ */
-  function pickQuestion() {
-    if (state.questionPass === 1) {
-      // Ordered pass
-      if (state.questionIndex < state.questionPool.length) {
-        const q = state.questionPool[state.questionIndex];
-        state.questionIndex++;
-        return q;
-      }
-      // Ordered pass finished → switch to random
-      state.questionPass = 2;
-      state.randomPool = QUESTIONS.slice();
-      return pickRandomQuestion();
-    }
-    return pickRandomQuestion();
-  }
 
-  function pickRandomQuestion() {
-    if (state.randomPool.length === 0) {
-      // Refill the random pool — every question again, but shuffled
-      state.randomPool = QUESTIONS.slice();
+  /* ------------------------------------------------------------
+     selectNextQuestion
+     ------------------------------------------------------------
+     Questions are drawn in "cycles". A cycle only ends once
+     EVERY question has been shown exactly once.
+
+       Cycle 1  → authored order (QUESTIONS[0], [1], [2] …)
+       Cycle 2+ → random order
+
+     Inside a cycle a question can never appear twice. When the
+     cycle is exhausted, the pool resets and a new cycle begins.
+     ------------------------------------------------------------ */
+  function selectNextQuestion() {
+    if (QUESTIONS.length === 0) {
+      return { q: '', a: [''] };
     }
-    const idx = Math.floor(Math.random() * state.randomPool.length);
-    return state.randomPool.splice(idx, 1)[0];
+
+    // Every question not yet shown in the current cycle.
+    let remaining = QUESTIONS.filter(function (q) {
+      return state.usedQuestions.indexOf(q) === -1;
+    });
+
+    // Whole list seen — start a brand-new cycle.
+    if (remaining.length === 0) {
+      state.usedQuestions = [];
+      remaining = QUESTIONS.slice();
+    }
+
+    let question;
+    if (state.questionPass === 1) {
+      question = remaining[0];                                 // ordered first pass
+    } else {
+      question = remaining[Math.floor(Math.random() * remaining.length)];
+    }
+
+    state.usedQuestions.push(question);
+
+    // Ordered pass finished → all later cycles are random.
+    if (state.questionPass === 1 && state.usedQuestions.length >= QUESTIONS.length) {
+      state.questionPass = 2;
+    }
+
+    return question;
   }
 
   /* ============================================================
@@ -436,8 +455,9 @@
     // If boss is dead → end
     if (state.bossHp <= 0) return endGame(true);
 
-    // Pick the next question (ordered, then random)
-    state.currentQuestion = pickQuestion();
+    // Pick the next question (ordered, then random — never repeating
+    // until the whole list has appeared once)
+    state.currentQuestion = selectNextQuestion();
     state.currentQuestionTime = getQuestionTime(state.currentQuestion);
 
     renderQuestion();
@@ -647,7 +667,7 @@
   }
 
   /* ============================================================
-     HUD — accuracy is now shown as %
+     HUD — accuracy is shown as %
      ============================================================ */
   function updateHud() {
     const heroPct = (state.heroHp / state.heroMaxHp) * 100;
@@ -659,7 +679,6 @@
     $('score-display').textContent = state.score;
     $('streak-display').textContent = state.streak;
 
-    // Accuracy as a percentage
     const acc = state.totalAnswered
       ? Math.round((state.totalCorrect / state.totalAnswered) * 100)
       : 0;
